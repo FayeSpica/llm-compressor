@@ -266,6 +266,7 @@ AWQ_MAPPING_REGISTRY: dict[str, list[AWQMapping]] = {
     "SeedOssForCausalLM": _default_mappings,
     "Ernie4_5_MoeForCausalLM": _default_mappings,
     "MiniMaxForCausalLM": _minimax_moe_mappings,
+    "MiniMaxM2ForCausalLM": _minimax_moe_mappings,
 }
 
 

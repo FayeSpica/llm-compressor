@@ -9,8 +9,13 @@ from llmcompressor.utils import dispatch_for_generation
 MODEL_ID = "Akicou/MiniMax-M2-5-REAP-50"
 
 # Load model.
+# ignore_mismatched_sizes=True is needed for REAP models where
+# e_score_correction_bias was not trimmed to match pruned expert count
 model = AutoModelForCausalLM.from_pretrained(
-    MODEL_ID, dtype="auto", trust_remote_code=True
+    MODEL_ID,
+    dtype="auto",
+    trust_remote_code=True,
+    ignore_mismatched_sizes=True,
 )
 tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, trust_remote_code=True)
 

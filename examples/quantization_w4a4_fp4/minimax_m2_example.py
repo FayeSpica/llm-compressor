@@ -10,8 +10,13 @@ from llmcompressor.utils import dispatch_for_generation
 MODEL_ID = "Akicou/MiniMax-M2-5-REAP-50"
 
 # Load model.
+# ignore_mismatched_sizes=True is needed for REAP models where
+# e_score_correction_bias was not trimmed to match pruned expert count
 model = AutoModelForCausalLM.from_pretrained(
-    MODEL_ID, dtype="auto", trust_remote_code=True
+    MODEL_ID,
+    dtype="auto",
+    trust_remote_code=True,
+    ignore_mismatched_sizes=True,
 )
 tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, trust_remote_code=True)
 
@@ -71,12 +76,8 @@ recipe = QuantizationModifier(
 # MoE calibration is now handled automatically by the pipeline.
 # We set `moe_calibrate_all_experts` to True to ensure all experts receive
 # calibration data. This temporarily updates the model definition to use
-# `CalibrationMiniMaxSparseMoeBlock` (from `llmcompressor.modeling.minimax_moe`)
-# which replaces the original `MiniMaxSparseMoeBlock` class.
-# This updates how the forward pass is handled in the MoE block during calibration.
-# Feel free to update the definition under
-# llm-compressor/src/llmcompressor/modeling/minimax_moe.py to play around with
-# this behavior and evaluate its impact on quantization performance.
+# `CalibrationMiniMaxM2SparseMoeBlock` (from `llmcompressor.modeling.minimax_moe`)
+# which replaces the original `MiniMaxM2SparseMoeBlock` class.
 oneshot(
     model=model,
     dataset=ds,
