@@ -171,6 +171,29 @@ _deepseek_mappings = [
     AWQMapping("re:.*up_proj$", ["re:.*down_proj$"]),
 ]
 
+# MiniMax uses hybrid attention (full_attention + lightning_attention alternating)
+# and Mixtral-style MoE with w1/w2/w3 naming. The MoE block is "block_sparse_moe".
+# Full attention layers have separate q_proj/k_proj/v_proj/o_proj.
+# Lightning attention layers have fused qkv_proj/out_proj/output_gate.
+_minimax_moe_mappings = [
+    AWQMapping(
+        "re:.*input_layernorm$",
+        ["re:.*q_proj$", "re:.*k_proj$", "re:.*v_proj$"],
+    ),
+    AWQMapping("re:.*v_proj$", ["re:.*o_proj$"]),
+    AWQMapping(
+        "re:.*post_attention_layernorm$",
+        [
+            "re:.*block_sparse_moe.experts.*.w1$",
+            "re:.*block_sparse_moe.experts.*.w3$",
+        ],
+    ),
+    AWQMapping(
+        "re:.*w3$",
+        ["re:.*w2$"],
+    ),
+]
+
 _bloom_mappings = [
     AWQMapping("re:.*input_layernorm$", ["re:.*query_key_value$"]),
     AWQMapping("re:.*post_attention_layernorm$", ["re:.*dense_h_to_4h$"]),
@@ -242,6 +265,7 @@ AWQ_MAPPING_REGISTRY: dict[str, list[AWQMapping]] = {
     "Glm4MoeForCausalLM": _default_mappings,
     "SeedOssForCausalLM": _default_mappings,
     "Ernie4_5_MoeForCausalLM": _default_mappings,
+    "MiniMaxForCausalLM": _minimax_moe_mappings,
 }
 
 

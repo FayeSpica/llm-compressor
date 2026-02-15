@@ -28,8 +28,11 @@ def update_fused_layer_weight_global_scales(submodule: torch.nn.Module):
     """
 
     def _is_mlp_module(module: Module):
+        # Standard naming: gate_proj / up_proj (Llama, Qwen, etc.)
+        # Mixtral naming: w1 / w3 (Mixtral, MiniMax, etc.)
         return "mlp" in module.__class__.__name__.lower() and (
-            hasattr(module, "gate_proj") and hasattr(module, "up_proj")
+            (hasattr(module, "gate_proj") and hasattr(module, "up_proj"))
+            or (hasattr(module, "w1") and hasattr(module, "w3"))
         )
 
     def _valid_tensor_group_quant(layer_list: list[Linear]):
@@ -79,20 +82,30 @@ def update_fused_layer_weight_global_scales(submodule: torch.nn.Module):
         del global_scale
 
     if _is_mlp_module(submodule):
-        if not _valid_tensor_group_quant([submodule.gate_proj, submodule.up_proj]):
+        # Support both naming conventions:
+        # Standard: gate_proj / up_proj (Llama, Qwen, etc.)
+        # Mixtral-style: w1 / w3 (Mixtral, MiniMax, etc.)
+        if hasattr(submodule, "gate_proj") and hasattr(submodule, "up_proj"):
+            gate_layer, up_layer = submodule.gate_proj, submodule.up_proj
+        elif hasattr(submodule, "w1") and hasattr(submodule, "w3"):
+            gate_layer, up_layer = submodule.w1, submodule.w3
+        else:
             return
 
-        with align_modules([submodule.gate_proj, submodule.up_proj]):
+        if not _valid_tensor_group_quant([gate_layer, up_layer]):
+            return
+
+        with align_modules([gate_layer, up_layer]):
             global_scale = torch.min(
                 torch.cat(
                     (
-                        submodule.gate_proj.weight_global_scale.data,
-                        submodule.up_proj.weight_global_scale.data,
+                        gate_layer.weight_global_scale.data,
+                        up_layer.weight_global_scale.data,
                     )
                 )
             ).reshape([1])
 
-        update_parameter_data(submodule.gate_proj, global_scale, "weight_global_scale")
-        update_parameter_data(submodule.up_proj, global_scale, "weight_global_scale")
+        update_parameter_data(gate_layer, global_scale, "weight_global_scale")
+        update_parameter_data(up_layer, global_scale, "weight_global_scale")
 
         del global_scale
